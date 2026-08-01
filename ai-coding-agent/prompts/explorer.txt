@@ -4,6 +4,9 @@ You must run an iterative process of searching files, reading file segments, and
 User Request:
 {{ request }}
 
+Project Metadata:
+{{ metadata }}
+
 Repository Tree:
 {{ tree }}
 
@@ -18,13 +21,21 @@ Currently Gathered Code Snippets:
 {% endif %}
 
 Select your next action:
-1. Search file contents: Use this to search for code occurrences, keywords, or variable names.
-   JSON Format:
+1. Search file contents: Use this to search for code occurrences, keywords, variable names, or symbols using regex.
+   Simple Format:
    {
      "thought": "Explain your logic...",
      "action": "SEARCH",
      "param": "search_query"
    }
+   
+   Advanced JSON Option String (to narrow search and save tokens):
+   {
+     "thought": "Searching only .js files in app/controllers matching a regex pattern...",
+     "action": "SEARCH",
+     "param": "{\"query\": \"\\\\bNote\\\\b\", \"file_extensions\": [\".js\"], \"include_dirs\": [\"app/controllers\"], \"context_lines\": 2}"
+   }
+
 2. Read a file slice: Use this to read specific lines from a file path (always keep line ranges under 100 lines to save tokens).
    JSON Format:
    {

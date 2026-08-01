@@ -37,6 +37,8 @@ def setup_logger(log_path: Path):
         
     return log
 
+import time
+
 def main():
     parser = argparse.ArgumentParser(description="AI Coding Agent - Automatically edit and improve a codebase.")
     parser.add_argument("repo_path", type=str, help="Path to target repository to modify")
@@ -53,6 +55,8 @@ def main():
         log_path.unlink()
         
     log = setup_logger(log_path)
+    
+    session_start_time = time.perf_counter()
     
     log("=========================================")
     log("Starting AI Coding Agent Session")
@@ -76,10 +80,12 @@ def main():
         sys.exit(1)
         
     # 2. Phase 1: Explore
+    explore_start = time.perf_counter()
     log("Phase 1: Exploring repository and gathering relevant files...")
     try:
         explorer_context = Explorer.explore(repo_path, request, llm)
-        log(f"Exploration complete. Found {len(explorer_context)} relevant files.")
+        explore_duration = time.perf_counter() - explore_start
+        log(f"Exploration complete (duration: {explore_duration:.2f}s). Found {len(explorer_context)} relevant files.")
         for f in explorer_context.keys():
             log(f"  - Relevant context loaded: {f}")
     except Exception as e:
@@ -90,20 +96,24 @@ def main():
         log("No relevant files identified by the explorer. Proceeding with planning using tree structure only.", style="yellow")
         
     # 3. Phase 2: Plan
+    plan_start = time.perf_counter()
     log("Phase 2: Formulating change implementation plan...")
     try:
         plan_details = Planner.plan(request, explorer_context, llm)
-        log("Plan formulated successfully.")
+        plan_duration = time.perf_counter() - plan_start
+        log(f"Plan formulated successfully (duration: {plan_duration:.2f}s).")
     except Exception as e:
         log(f"Planning phase failed: {str(e)}", style="bold red")
         sys.exit(1)
         
     # 4. Phase 3: Modify
+    modify_start = time.perf_counter()
     log("Phase 3: Applying targeted search-and-replace modifications...")
     try:
         edit_results = Modifier.modify(repo_path, plan_details, request, llm)
+        modify_duration = time.perf_counter() - modify_start
         success_count = sum(1 for edit in edit_results if edit["success"])
-        log(f"Modification phase complete. Successfully updated {success_count}/{len(edit_results)} target files.")
+        log(f"Modification phase complete (duration: {modify_duration:.2f}s). Successfully updated {success_count}/{len(edit_results)} target files.")
         for edit in edit_results:
             status = "[bold green]Success[/bold green]" if edit["success"] else f"[bold red]Failed: {edit['error']}[/bold red]"
             log(f"  - File {edit['file_path']}: {status}")
@@ -112,10 +122,14 @@ def main():
         sys.exit(1)
         
     # 5. Phase 4: Summarize
+    summarize_start = time.perf_counter()
     log("Phase 4: Generating final change summary...")
     try:
         summary_markdown = Summarizer.summarize(edit_results, llm)
-        log("Summary created successfully. Session complete.")
+        summarize_duration = time.perf_counter() - summarize_start
+        session_duration = time.perf_counter() - session_start_time
+        log(f"Summary created successfully (duration: {summarize_duration:.2f}s). Session complete.")
+        log(f"Total Session Duration: {session_duration:.2f}s")
         log("=========================================")
         log("Final Change Summary:")
         console.print(Markdown(summary_markdown))

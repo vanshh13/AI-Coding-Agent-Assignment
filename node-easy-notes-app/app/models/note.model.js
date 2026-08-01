@@ -1,11 +1,13 @@
 const mongoose = require('mongoose');
 
 const NoteSchema = mongoose.Schema({
-    title: String,
-    content: String,
+            title: String,
+            content: String,
+            priority: String,
     tags: [String],
-    categories: [String],
-    folder: String
+            categories: [String],
+            folder: String,
+            color: String
 }, {
     timestamps: true
 });

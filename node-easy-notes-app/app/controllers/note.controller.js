@@ -14,7 +14,9 @@ exports.create = (req, res) => {
         title: req.body.title || "Untitled Note", 
         content: req.body.content,
         tags: req.body.tags || [],
-        folder: req.body.folder || "Uncategorized"
+        folder: req.body.folder || "Uncategorized",
+        subcategory: req.body.subcategory || "Uncategorized",
+        priority: req.body.priority || "Low"
     });
 
     // Save Note in the database
@@ -36,6 +38,12 @@ exports.findAll = (req, res) => {
     }
     if (req.query.folder) {
         query.folder = req.query.folder;
+    }
+    if (req.query.subcategory) {
+        query.subcategory = req.query.subcategory;
+    }
+    if (req.query.priority) {
+        query.priority = req.query.priority;
     }
     if (req.query.search) {
         query.$or = [
@@ -90,7 +98,9 @@ exports.update = (req, res) => {
         title: req.body.title || "Untitled Note",
         content: req.body.content,
         tags: req.body.tags || [],
-        folder: req.body.folder || "Uncategorized"
+        folder: req.body.folder || "Uncategorized",
+        subcategory: req.body.subcategory || "Uncategorized",
+        priority: req.body.priority || "Low"
     }, {new: true})
     .then(note => {
         if(!note) {
