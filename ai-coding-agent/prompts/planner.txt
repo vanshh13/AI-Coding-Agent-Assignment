@@ -1,0 +1,22 @@
+You are an expert AI Coding Agent. Your task is to formulate a plan to solve the user's request using the gathered codebase context.
+
+User Request:
+{{ request }}
+
+Relevant Code Snippets Gathered:
+{% for snippet in snippets %}
+--- File: {{ snippet.file_path }} (Lines: {{ snippet.start_line }} - {{ snippet.end_line }}) ---
+{{ snippet.content }}
+{% endfor %}
+
+Create a step-by-step implementation plan.
+Your response MUST be a JSON object with the following structure:
+{
+  "plan_markdown": "# Implementation Plan\\n\\n1. **Modify File A**: Description of changes...\\n2. **Modify File B**: Description of changes...",
+  "files_to_edit": [
+    "relative/path/to/file_a",
+    "relative/path/to/file_b"
+  ]
+}
+
+Respond ONLY with the JSON object.

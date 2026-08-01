@@ -1,0 +1,26 @@
+# Ignore local environment files containing secrets
+ai-coding-agent/.env
+.env
+.env.*
+!.env.example
+
+# Ignore virtual environments
+**/venv/
+**/.venv/
+**/env/
+**/ENV/
+
+# Python cache files
+**/__pycache__/
+**/*.py[cod]
+
+# Node dependencies and build files
+**/node_modules/
+**/dist/
+**/build/
+package-lock.json
+
+# Agent backups and output
+ai-coding-agent/output/
+ai-coding-agent/*.bak
+*.bak

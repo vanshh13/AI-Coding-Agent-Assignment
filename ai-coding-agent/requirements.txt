@@ -1,0 +1,11 @@
+# OpenAI-compatible API client to invoke model completions (used in tools/llm.py)
+openai>=1.0.0
+
+# Text templating engine to render system/user templates (used in tools/llm.py to compile prompts/*.txt)
+jinja2>=3.1.0
+
+# Terminal styling and markdown renderer for console feedback (used in main.py)
+rich>=13.0.0
+
+# Environment configurations loader to read parameters from .env (used in config.py)
+python-dotenv>=1.0.0
