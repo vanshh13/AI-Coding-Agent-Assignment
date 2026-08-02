@@ -29,7 +29,8 @@ class LLMHelper:
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": prompt}
             ],
-            temperature=self.config.TEMPERATURE
+            temperature=self.config.TEMPERATURE,
+            max_tokens=4096
         )
         return response.choices[0].message.content or ""
 
@@ -47,7 +48,8 @@ class LLMHelper:
                     {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"},
-                temperature=self.config.TEMPERATURE
+                temperature=self.config.TEMPERATURE,
+                max_tokens=8192
             )
             raw_content = response.choices[0].message.content or "{}"
         except Exception as e:
@@ -60,14 +62,18 @@ class LLMHelper:
                         {"role": "system", "content": fallback_system},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=self.config.TEMPERATURE
+                    temperature=self.config.TEMPERATURE,
+                    max_tokens=8192
                 )
                 raw_content = response.choices[0].message.content or "{}"
             except Exception as inner_e:
                 raise RuntimeError(f"LLM API Call failed: {str(inner_e)}") from inner_e
 
-        # Normalize and clean up response content
-        clean_content = raw_content.strip()
+        # Strip <think> tags (used by reasoning models) before parsing
+        # Use (?:</think>|$) to handle truncated responses where the tag isn't closed
+        import re
+        clean_content = re.sub(r'<think>.*?(?:</think>|$)', '', raw_content, flags=re.DOTALL).strip()
+        
         if clean_content.startswith("```"):
             # Strip markdown fences if present
             lines = clean_content.split("\n")
@@ -84,7 +90,8 @@ class LLMHelper:
 
         try:
             return json.loads(extracted_content)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            print(f"[LLM] JSON Parse Error: {str(e)}\nRaw Content: {raw_content}\nExtracted Content: {extracted_content}")
             return {"error": "Invalid JSON response", "raw": raw_content}
 
 def extract_json_object(text: str) -> str:

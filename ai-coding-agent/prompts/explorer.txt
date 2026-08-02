@@ -10,6 +10,15 @@ Project Metadata:
 Repository Tree:
 {{ tree }}
 
+Previous Action History:
+{% if history %}
+{% for step in history %}
+- Step {{ loop.index }}: Thought: "{{ step.thought }}" | Action: {{ step.action }} | Param: {{ step.param }}
+{% endfor %}
+{% else %}
+(No actions taken yet)
+{% endif %}
+
 Currently Gathered Code Snippets:
 {% if snippets %}
 {% for snippet in snippets %}
@@ -19,6 +28,11 @@ Currently Gathered Code Snippets:
 {% else %}
 (No snippets gathered yet)
 {% endif %}
+
+INSTRUCTIONS & LOOP PREVENTION:
+1. Examine the Repository Tree to find relevant filenames. If you see a file in the tree that is likely to contain the code you need (e.g. app/models/note.model.js, app/controllers/note.controller.js), use the READ action directly on that file instead of trying to search for it.
+2. DO NOT repeat the exact same search query or read action if it previously returned no matches or the same content.
+3. Check the "Previous Action History" above to ensure you are not repeating yourself. If a search query fails, try a different query, perform a broader search, or read the files directly.
 
 Select your next action:
 1. Search file contents: Use this to search for code occurrences, keywords, variable names, or symbols using regex.

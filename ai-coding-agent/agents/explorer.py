@@ -120,6 +120,7 @@ class Explorer:
         """Runs the iterative repository exploration loop with metadata discovery and snippet caching."""
         snippets: List[Dict[str, Any]] = []
         read_history = set()
+        history: List[Dict[str, str]] = []
         
         # 1. Performance: Scan directory tree and metadata exactly once
         tree_str = generate_tree(repo_path)
@@ -136,7 +137,8 @@ class Explorer:
                     "request": request,
                     "metadata": metadata_str,
                     "tree": tree_str, 
-                    "snippets": consolidated_snippets
+                    "snippets": consolidated_snippets,
+                    "history": history
                 }
             )
 
@@ -147,6 +149,12 @@ class Explorer:
             param = response.get("param")
 
             print(f"[Explorer Step {iteration}] Thought: {thought}")
+            
+            history.append({
+                "thought": thought,
+                "action": action or "UNKNOWN",
+                "param": str(param)
+            })
 
             if action == "DONE" or not action:
                 print("[Explorer] Finished exploration.")

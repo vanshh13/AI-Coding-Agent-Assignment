@@ -99,7 +99,7 @@ def main():
     plan_start = time.perf_counter()
     log("Phase 2: Formulating change implementation plan...")
     try:
-        plan_details = Planner.plan(request, explorer_context, llm)
+        plan_details = Planner.plan(request, explorer_context, repo_path, llm)
         plan_duration = time.perf_counter() - plan_start
         log(f"Plan formulated successfully (duration: {plan_duration:.2f}s).")
     except Exception as e:

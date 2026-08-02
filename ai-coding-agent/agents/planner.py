@@ -5,10 +5,14 @@ from tools.file import write_file
 
 class Planner:
     @staticmethod
-    def plan(request: str, explorer_context: Dict[str, str], llm: LLMHelper) -> Dict[str, Any]:
+    def plan(request: str, explorer_context: Dict[str, str], repo_path: Path, llm: LLMHelper) -> Dict[str, Any]:
         """Formulates an implementation plan and returns target files to edit.
         Saves the markdown plan to output/plan.md.
         """
+        from tools.tree import generate_tree
+        from agents.explorer import detect_project_metadata
+        import json
+
         # Convert dictionary to snippet format for template rendering
         snippets = []
         for path_str, content in explorer_context.items():
@@ -19,11 +23,17 @@ class Planner:
                 "content": content
             })
 
+        tree_str = generate_tree(repo_path)
+        metadata = detect_project_metadata(repo_path)
+        metadata_str = json.dumps(metadata, indent=2)
+
         prompt = llm.render_prompt(
             "planner.txt",
             {
                 "request": request,
-                "snippets": snippets
+                "snippets": snippets,
+                "tree": tree_str,
+                "metadata": metadata_str
             }
         )
 
