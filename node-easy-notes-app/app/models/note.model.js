@@ -7,7 +7,8 @@ const NoteSchema = mongoose.Schema({
     tags: [String],
             categories: [String],
             folder: String,
-            color: String
+                color: String,
+    isArchived: { type: Boolean, default: false }
 }, {
     timestamps: true
 });

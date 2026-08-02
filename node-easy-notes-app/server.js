@@ -32,6 +32,7 @@ app.get('/', (req, res) => {
 });
 
 require('./app/routes/note.routes.js')(app);
+// Ensure the new routes are registered
 
 // listen for requests
 app.listen(3000, () => {

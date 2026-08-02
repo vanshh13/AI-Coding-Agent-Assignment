@@ -145,8 +145,10 @@ class Modifier:
                 # ── Duplicate-content guard ──────────────────────────────────
                 # Detect if the edit duplicated large blocks of code.
                 # Check: if any 10+ consecutive non-blank lines appear twice,
+                # and this duplication wasn't already present in the original file,
                 # the edit likely corrupted the file with a massive hallucination.
                 content_lines = [l.strip() for l in updated_content.splitlines() if l.strip()]
+                original_lines = [l.strip() for l in file_content.splitlines() if l.strip()]
                 if len(content_lines) >= 20:
                     window_size = 10
                     seen_windows = set()
@@ -154,14 +156,159 @@ class Modifier:
                     for wi in range(len(content_lines) - window_size + 1):
                         window = tuple(content_lines[wi:wi + window_size])
                         if window in seen_windows:
-                            duplicate_found = True
-                            break
+                            # Verify if this duplication existed in the original file
+                            orig_count = sum(
+                                1 for oj in range(len(original_lines) - window_size + 1)
+                                if tuple(original_lines[oj:oj + window_size]) == window
+                            )
+                            if orig_count < 2:
+                                duplicate_found = True
+                                break
                         seen_windows.add(window)
                     if duplicate_found:
                         file_success = False
                         error_message = f"Duplicate content block detected after edit — likely LLM hallucination"
                         print(f"[Modifier] {error_message} in {file_name}")
                         break
+
+            # Attempt fallback if patching failed
+            if not file_success:
+                print(f"[Modifier] Targeted edits failed for {file_name}: {error_message}. Attempting fallback (rewrite entire file)...")
+                # Restore to original state first
+                if not is_new_file:
+                    restore_backup(backup_path)
+                
+                # Re-read the file to ensure we are back at the original state
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        file_content = f.read()
+                except Exception as e:
+                    print(f"[Modifier] Fallback failed: could not re-read original file.")
+                    file_content = ""
+
+                if file_content:
+                    # Request the LLM to rewrite the entire file
+                    fallback_prompt = f"""You are an expert code editor. Your job is to output the ENTIRE updated content of the target file because the previous targeted edits failed with the following error:
+{error_message}
+
+User Request:
+{request}
+
+Implementation Plan:
+{plan_markdown}
+
+Target File Path: {file_name}
+
+Full Content of Target File:
+```
+{file_content}
+```
+
+Please output a JSON object with a single edit that replaces the entire file. The JSON structure must be:
+{{
+  "edits": [
+    {{
+      "explanation": "Rewrite entire file to implement the requested changes and ensure syntax correctness.",
+      "search_block": <MUST be the entire file content copied exactly from the target file above>,
+      "replace_block": <the entire new file content with all modifications incorporated>
+    }}
+  ]
+}}
+
+STRICT RULES:
+1. "search_block" MUST be the exact verbatim content of the original file as shown above.
+2. "replace_block" MUST be the complete, syntactically correct updated file. Do not truncate or omit any pre-existing code unless requested.
+3. Respond ONLY with the JSON object.
+"""
+                    try:
+                        response = llm.call_json(fallback_prompt, system_message="You are a code modifier. Output valid JSON only.")
+                        fallback_edits = response.get("edits", [])
+                        if fallback_edits:
+                            # Re-create backup for fallback attempt
+                            if not is_new_file:
+                                backup_path = create_backup(file_path)
+                            
+                            fallback_success = True
+                            fallback_error = ""
+                            
+                            for edit in fallback_edits:
+                                s_blk = edit.get("search_block", "")
+                                r_blk = edit.get("replace_block", "")
+                                
+                                success = apply_replace(file_path, s_blk, r_blk)
+                                if not success:
+                                    # Fallback: if search block mismatch, write replace_block directly
+                                    try:
+                                        with open(file_path, 'w', encoding='utf-8') as f:
+                                            f.write(r_blk)
+                                        from tools.file import invalidate_cache
+                                        invalidate_cache(file_path)
+                                        success = True
+                                    except Exception as e:
+                                        fallback_success = False
+                                        fallback_error = f"Failed to write fallback content directly: {str(e)}"
+                                        break
+                                
+                                # Validate syntax
+                                with open(file_path, 'r', encoding='utf-8') as f:
+                                    updated_content = f.read()
+                                
+                                if file_name.endswith(".py"):
+                                    try:
+                                        ast.parse(updated_content)
+                                    except SyntaxError as se:
+                                        fallback_success = False
+                                        fallback_error = f"Fallback syntax error: {str(se)}"
+                                        break
+                                
+                                if file_name.endswith((".js", ".ts", ".mjs", ".cjs")):
+                                    import subprocess
+                                    try:
+                                        result = subprocess.run(
+                                            ["node", "--check", str(file_path)],
+                                            capture_output=True, text=True, timeout=10
+                                        )
+                                        if result.returncode != 0:
+                                            fallback_success = False
+                                            fallback_error = f"Fallback JS syntax error: {result.stderr.strip()[:200]}"
+                                            break
+                                    except Exception:
+                                        pass
+                                
+                                # Duplicate guard
+                                content_lines = [l.strip() for l in updated_content.splitlines() if l.strip()]
+                                original_lines = [l.strip() for l in file_content.splitlines() if l.strip()]
+                                if len(content_lines) >= 20:
+                                    window_size = 10
+                                    seen_windows = set()
+                                    dup_found = False
+                                    for wi in range(len(content_lines) - window_size + 1):
+                                        window = tuple(content_lines[wi:wi + window_size])
+                                        if window in seen_windows:
+                                            orig_count = sum(
+                                                1 for oj in range(len(original_lines) - window_size + 1)
+                                                if tuple(original_lines[oj:oj + window_size]) == window
+                                            )
+                                            if orig_count < 2:
+                                                dup_found = True
+                                                break
+                                        seen_windows.add(window)
+                                    if dup_found:
+                                        fallback_success = False
+                                        fallback_error = "Fallback duplicate content block detected"
+                                        break
+                            
+                            if fallback_success:
+                                print(f"[Modifier] Fallback succeeded! Successfully updated {file_name} by rewriting.")
+                                file_success = True
+                                error_message = ""
+                            else:
+                                print(f"[Modifier] Fallback failed: {fallback_error}")
+                                error_message = fallback_error
+                        else:
+                            print("[Modifier] Fallback failed: No edits returned.")
+                    except Exception as e:
+                        print(f"[Modifier] Exception during fallback: {str(e)}")
 
             # Handle rollback if any block fails
             if not file_success:
